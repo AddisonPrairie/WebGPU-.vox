@@ -1,0 +1,381 @@
+<html>
+    <head>
+        <script src="js/glMatrix.js"></script>
+        <script src="js/voxels.js"></script>
+        <script src="js/main.js"></script>
+        <script src="js/web.vox.js"></script>
+        <style type="text/css" rel="stylesheet" href="//cdn.jsdelivr.net/font-hack/2.019/css/hack.min.css"></style>
+        <style>
+            :root {
+                --text-percent: .4;
+                --field-percent: .58;
+
+                --row-width: 275px;
+
+                --label-width: calc(var(--row-width) * var(--text-percent));
+                --field-width: calc(var(--field-percent) * var(--row-width));
+
+                --row-height: 18px;
+            }
+            body {
+                padding: 0px;
+                margin: 0px;
+
+                font-family: "Hack", monospace;
+                font-size: 12px;
+                color: rgb(251, 251, 251);
+            }
+            .ui {
+                width: var(--row-width);
+                margin: 3px;
+                padding: 6px;
+                background-color: rgb(35, 35, 35);
+            }
+            .ui-row {
+                width: var(--row-width);
+                padding: 0px;
+                margin: 0px;
+                
+                display: flex;
+            }
+            .ui-row + .ui-row {
+                margin-top: 3px;
+            }
+            .header-row {
+                width: var(--row-width);
+                height: var(--row-height);
+                text-align: center;
+                line-height: 18px;
+                color: rgb(161, 161, 161);
+            }
+            .row-label {
+                height: var(--row-height);
+                width: var(--label-width);
+                line-height: 18px;
+                text-align: right;
+            }
+            .row-spacer {
+                width: calc((1 - (var(--text-percent) + var(--field-percent))) * var(--row-width));
+                height: var(--row-height);
+            }
+            .row-field {
+                width: var(--field-width);
+                height: var(--row-height);
+            }
+            .row-field {
+                color: rgb(161, 161, 161);
+                display: flex;
+            }
+            .row-field > button {
+                width: 100%;
+                height: 100%;
+
+                border: none;
+                color: rgb(161, 161, 161);
+                font-family: "Hack", monospace;
+                font-size: 12px;
+                background-color: rgb(54, 54, 54);
+            }
+            .row-field > input[type="color"] {
+                -webkit-appearance: none;
+                appearance: none;
+                border: none;
+                background: none;
+                padding: 0px; margin: 0px;
+                width: var(--row-height); 
+                height: var(--row-height);
+            }
+            .row-field > input[type="color"]::-webkit-color-swatch-wrapper {
+                padding: 0px; margin: 0px;
+            }
+            input[type="range"] {
+                -webkit-appearance: none;
+                appearance: none;
+
+                background-color: rgb(54, 54, 54);
+
+                width: 90px;
+                
+                height: var(--row-height);
+                padding: 0px;
+            }
+            input[type="text"] {
+                width: 100%;
+                border: none;
+                background-color: rgb(54, 54, 54);
+                color: rgb(161, 161, 161);
+                font-family: 'Hack', monospace;
+                text-align: center;
+            }
+            input[type="range"] {
+                margin: 0px 5px 0px 0px;
+                width: 113px;
+            }
+            input[type="color"] ~ input[type="range"] {
+                width: 90px;
+                margin: 0px 5px;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: calc(var(--row-height) * .25);
+                height: var(--row-height);
+                background-color: rgb(80, 80, 80);
+            }
+            .slider-value {
+                height: var(--row-height);
+                flex-grow: 1;
+                text-align: center;
+                line-height: 18px;
+                background-color: rgb(54, 54, 54);
+            }
+            input[type="checkbox"] {
+                -webkit-appearance: none;
+                appearance: none;
+                margin: 0px 3px 0px 0px;
+                border: 1px;
+                width: calc(var(--row-height) - 8px);
+                height: calc(var(--row-height));
+                background-color: rgb(54, 54, 54);
+
+                display: grid;
+                place-content: center;
+            }
+            button + input[type="checkbox"] {
+                margin-left: 3px;
+            }
+            input[type="checkbox"]::before {
+                content: "";
+                width: 0.65em;
+                height: 0.65em;
+                width: calc(var(--row-height) - 8px);
+                height: calc(var(--row-height));
+                transform: scale(0);
+                background-color: rgb(80, 80, 80);
+            }
+            input[type="checkbox"]:checked::before {
+                transform: scale(1);
+            }
+            .row-field > .check-label {
+                text-align: center;
+                width: 1px; flex-grow: 1;
+                flex-shrink: 1;
+                margin: 0px;
+            }
+            .row-field > select {
+                flex-grow: 1; width: 1px;
+                margin: 0px;
+                margin-left: 3px;
+                height: var(--row-height);
+                line-height: var(--row-height);
+                background-color: green;
+                border: none;
+                font-family: 'Hack', monospace;
+                text-align: center;
+                background-color: rgb(54, 54, 54);
+                color: rgb(161, 161, 161);
+            }
+            .help-background {
+                width: 100%; height: 100%;
+                position: absolute; z-index: 2;
+                backdrop-filter: blur(2px);
+                background-color: rgba(0, 0, 0, .4);
+                border: none; margin: 0px;
+            }
+            .help {
+                z-index: 3; position: absolute;
+
+                left: 50%; top: 50%;
+                transform: translate(-50%, -50%);
+
+                width: 500px;
+                font-family: "Hack", monospace;
+                font-size: 12px;
+                color: rgb(226, 226, 226);
+                background-color: rgb(35, 35, 35);
+            }
+            .help > p {
+                margin: 10px;
+            }
+            .help-text > a {
+                color: rgb(251, 251, 251);
+            }
+        </style>
+    </head>
+    <body>
+        <button class="help-background">
+        </button>
+        <div class="help">
+            <p class="help-text">
+                This is an interactive voxel renderer written in WebGPU.<br>
+                <br>
+                Controls:<br>
+                &nbsp&nbspW/S - move forward/backward<br>
+                &nbsp&nbspA/D - move left/right<br>
+                &nbsp&nbspshift/space - move down/up<br>
+                <br>
+                Settings:<br>
+                &nbsp&nbspfocal distance - distance to focal plane<br>
+                &nbsp&nbspaperture - amount of blur when out of focus<br>
+                &nbsp&nbsptonemapping - maps HDR colors to displays<br>
+                &nbsp&nbspsun - sun color and intensity<br>
+                &nbsp&nbspsun azimuth - sun's upright rotation<br>
+                &nbsp&nbspsun zenith - sun's vertical rotation<br>
+                &nbsp&nbspsky - sky color and intensity<br>
+                &nbsp&nbspnew rule - generates a new rule seed<br>
+                &nbsp&nbsprule seed - seed used to generate fractal<br>
+                &nbsp&nbspflip % - chance to flip a voxel during generation<br>
+                &nbsp&nbspregenerate scene - create new scene with seed<br>
+                &nbsp&nbspstage - status of scene generation<br>
+                &nbsp&nbspcopy seed url - copies URL with current seed to clipboard<br>
+                &nbsp&nbspvoxel 0/1 - change the color and shape of palette used<br>
+
+                &nbsp&nbspspeed - camera movement speed<br>
+                <br>
+                The default scene size is 64x64x64. Other available sizes include:<br>
+                32x32x32, 64x64x64, 128x128x128, 256x256x256, 512x512x512<br>
+                To use a different size, insert or edit the size query in the URL <br>(i.e., ?size=xxx) and reload the page. For example, going to<br><br>
+                <a href="https://addisonprairie.github.io/WebGPU-Voxel-Fractals/?size=128">https://addisonprairie.github.io/WebGPU-Voxel-Fractals/?size=128</a><br><br>
+                will let you explore 128x128x128 fractals. Note that larger fractals will take longer to generate. For 512^3 fractals, your browser may notify you that the page has stopped responding. It just needs a moment.<br><br>
+                Additionally, if you find a seed you like and want to share it with others, you can insert that seed into the URL like: <br><br>
+                https:// ... /?size=128&seed=673-966-187-297<br><br>
+                When another person clicks on your link, they will automatically load in with that seed. This process can also be done automatically by clicking the "copy seed url" button.<br>
+                <br>
+                &Tab;The fractal generation code is a port of Brent Werness' "Voxel Automata Terrain." The source used for 
+                the port is available <a href="https://bitbucket.org/BWerness/voxel-automata-terrain/src/master/">here</a>. The rendering code was written by me (Addison Prairie). It uses <a href="https://github.com/toji/gl-matrix">glMatrix</a> for
+                certain host-side linear algebra operations. Other attributions for specific functions can be found in the source code, which is available <a href="https://github.com/AddisonPrairie/WebGPU-Voxel-Fractals">here</a>.<br>
+                <br>
+                Feel free to share any images generated with this site. The underlying voxel rendering engine is a single-file, free to use, and open-source.<br>
+                <br>
+                Follow me on twitter: <a href="https://twitter.com/AddisonPrairie">@AddisonPrairie</a>
+            </p>
+        </div>
+        <div class="ui" style="z-index: 1; position: absolute;">
+            <div class="ui-row">
+                <div class="header-row">CAMERA</div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">focal distance</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="range" id="focal-distance-slider" min="0.001" max="1" step=".0001" value=".5">
+                    <div class="slider-value" id="focal-distance-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">aperture</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="range" id="aperture-slider" min="0" max="1" step=".001" value=".01">
+                    <div class="slider-value" id="aperture-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label" data-mode="0" id="tone-mapping">tone mapping</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="checkbox" id="aces"><button class="check-label" id="aces-button">aces</button>
+                    <input type="checkbox" id="reinhard"><button class="check-label" id="reinhard-button">reinhard</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="header-row">LIGHTING</div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">sun</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="color" id="sun-color" value="#fff4db">
+                    <input type="range" id="sun-brightness-slider" min="0" max="10" step=".01" value="5.43">
+                    <div class="slider-value" id="sun-brightness-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">sun azimuth</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="range" id="azimuth-slider" min="0" max="360" step=".1" value="349">
+                    <div class="slider-value" id="azimuth-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">sun zenith</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="range" id="zenith-slider" min="-179.9" max="-.1" step=".1" value="-32">
+                    <div class="slider-value" id="zenith-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">sky</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="color" id="sky-color" value="#dcfafe">
+                    <input type="range" id="sky-brightness-slider" min="0" max="10" step=".01" value="1">
+                    <div class="slider-value" id="sky-brightness-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="header-row">SCENE</div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label"></div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="upload-model">upload model</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="header-row">RENDER</div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label"></div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="save-image">save image</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label"></div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="reset-render">reset render</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">samples</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="samples-count">0</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">gpu device</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="adapter-info">n/a</button>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="header-row">CONTROLS</div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label">speed</div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <input type="range" id="speed-slider" min="0.1" max="10" step=".1" value="2">
+                    <div class="slider-value" id="speed-value">1.50</div>
+                </div>
+            </div>
+            <div class="ui-row">
+                <div class="row-label"></div>
+                <div class="row-spacer"></div>
+                <div class="row-field">
+                    <button id="help">help</button>
+                </div>
+            </div>
+        </div>
+        <div style="z-index: -1;">
+            <canvas id="render-target" style="width: 100%; height: 100%; margin: 0px; z-index : -1;"></canvas>
+        </div>
+    </body>
+</html>
