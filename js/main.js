@@ -146,10 +146,23 @@ window.onload = async () => {
         vox.clearScene();
 
         let count = 0; let av = [0, 0, 0];
+
+        //find the min/max bounds
+        var mins = [1_000_000, 1_000_000, 1_000_000];
         for (var x in models) {
             setAll(models[x], (a, b, c, d) => {
-                if (b > 0) {av[0] += a; av[1] += b; av[2] += c; count++;}
-                vox.setVoxel(a, b, c, d);
+                if (d == 0) {return;}
+                mins[0] = Math.min(mins[0], a);
+                mins[1] = Math.min(mins[1], b);
+                mins[2] = Math.min(mins[2], c);
+
+            });
+        }
+
+        for (var x in models) {
+            setAll(models[x], (a, b, c, d) => {
+                if (b > 0) {av[0] += a - mins[0]; av[1] += b - mins[1]; av[2] += c - mins[2]; count++;}
+                vox.setVoxel(a - mins[0], b - mins[1], c - mins[2], d);
             });
         }
 
@@ -225,15 +238,9 @@ window.onload = async () => {
     document.body.ondragover = (e) => {e.preventDefault()}
 
     //movement / interaction with scene
-    let theta = Math.PI / 4.;
+    let theta = 5. * Math.PI / 4.;
     let phi = Math.PI / 8.;
 
-    let position = [
-        Math.cos(theta + Math.PI) * Math.cos(phi) * 256 * 2.5 + 256 / 2,
-        Math.sin(theta + Math.PI) * Math.cos(phi) * 256 * 2.5 + 256 / 2,
-        Math.sin(-phi) * 256 * 2.5 + 256 / 3
-    ];
-    let mousevelocity = {x: 0., y: 0.};
     let deltaX = 0.; let deltaY = 0.;
     document.querySelector("#render-target").addEventListener("mousedown", (e) => {
         const mouse = {x: e.clientX, y: e.clientY};
@@ -267,7 +274,7 @@ window.onload = async () => {
             vox.uploadRenderSettings(getUIValues());
         } flags["changed"] = false;
 
-        const dist = 400;
+        const dist = 300;
         vox.setLookAt(centerposition);
         vox.setPosition([
             centerposition[0] + Math.cos(theta) * Math.cos(phi) * dist,
