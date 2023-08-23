@@ -389,9 +389,7 @@ async function voxels(canvas, size, options) {
         d = normalize(focaltarget - o);
         d = select(vec3f(-1.), vec3f(1.), d > vec3f(0.)) * max(abs(d), vec3f(.0001));
 
-        
-        var col : vec3f = pt2(o, d);
-
+        var col : vec3f = pt(o, d);
         var accumulated = (col + textureLoad(accum, vec2i(fragCoord.xy), 0).xyz * uniforms.other.y) / (uniforms.other.y + 1.);
 
         return vec4f(accumulated, 1.);
@@ -426,21 +424,6 @@ async function voxels(canvas, size, options) {
         return vec2f(r * cos(theta), r * sin(theta));
     }
 
-    fn coneSample(d : vec3f, e : f32) -> vec3f {
-        var o1 : vec3f;
-        if (abs(d.x) > abs(d.y)) {
-            o1 = vec3f(-d.y, d.x, 0.);
-        } else {
-            o1 = vec3f(0., -d.z, d.y);
-        }
-        o1 = normalize(o1); var o2 = normalize(cross(o1, d));
-
-        var r : vec2f = rand2();
-        var r2: vec2f = vec2f(r.x * 2. * Pi, 1. - r.y * e);
-        var m1:   f32 = sqrt(max(0., 1. - r2.y * r2.y));
-        return cos(r2.x) * m1 * o1 + sin(r2.y) * m1 * o2 + r2.y * d;
-    }
-
     //gets an orthogonal basis around a normal - specific for voxels
     fn basis(n : vec3f, ro1 : ptr<function, vec3f>, ro2 : ptr<function, vec3f>) {
         var o1 : vec3f; var o2 : vec3f;
@@ -462,7 +445,7 @@ async function voxels(canvas, size, options) {
     }
 
     //main path tracing function
-    fn pt2(oi : vec3f, di : vec3f) -> vec3f {
+    fn pt(oi : vec3f, di : vec3f) -> vec3f {
         var o : vec3f = oi; var d : vec3f = di;
 
         var t : vec3f = vec3f(0.);
@@ -586,233 +569,12 @@ async function voxels(canvas, size, options) {
 
         return 1. / (Pi * a2 * denom * denom);
     }
-
+    
     //fresnel conductor approximation, need to find a source for this
     fn schlickFresnelConductor(v : vec3f, n : vec3f, ior : f32, absorption : f32) -> f32 {
         var F = (ior - 1.) * (ior - 1.) + 4. * ior * pow(1. - dot(v, n), 5.) + absorption * absorption;
         return F / ((ior + 1.) * (ior + 1.) + absorption * absorption);
-    }
-
-    /*fn ggxVNDFPdf(wo : vec3f, n : vec3f) -> f32 {
-        var G : f32; var D : f32;
-
-        var roughness : f32 = .1;
-        var a2 : f32 = roughness * roughness;
-
-        {
-            /*
-            var denom = n.z * n.z * (a2 + (1. - n.z * n.z) / (n.z * n.z));
-            denom = Pi * denom * denom;
-            D = a2 * f32(n.z > 0.) / denom;
-            */
-            var denom : f32  = dot(n.xy, n.xy) / a2 + n.z * n.z;
-            D = 1. / (Pi * a2 * (denom * denom));
-        }
-
-        {
-            G = 2. / (1. + sqrt(1. + a2 * dot(wo.xy, wo.xy) / (wo.z * wo.z)));
-            /*var nwo : f32 = dot(wo, n);
-            G = f32(wo.z * n.z > 0.) * 2. / (1. + sqrt(1. + a2 * (1. - nwo * nwo) / (nwo * nwo)));
-            */
-        }
-
-        return G * max(0., dot(wo, n)) * D / (n.z);
-    }
-
-    fn ggxVNDFiPdf(wo : vec3f, n : vec3f) -> f32 {
-        return ggxVNDFPdf(wo, n) / (4. * dot(wo, n));
-    }
-
-    fn torranceBRDF(wo : vec3f, wi : vec3f, n : vec3f, color_r : vec4f) -> vec3f {
-        var col : vec3f = vec3f(1.);
-        var roughness : f32 = .1;
-
-        var D : f32;
-        var F : f32;
-        var G : f32;
-
-        var a2 : f32 = roughness * roughness;
-        var hw :vec3f= normalize(wo + wi);
-
-        //all from: http://www.codinglabs.net/article_physically_based_rendering_cook_torrance.aspx
-        {
-            var denom = hw.z * hw.z * (a2 + (1. - hw.z * hw.z) / (hw.z * hw.z));
-            denom = Pi * denom * denom;
-            D = a2 * f32(hw.z > 0.) / denom;
-        }
-        {
-            var wh0= dot(wo, hw);
-            var g0 = f32(wo.z * wh0 > 0.) * 2. / (1. + sqrt(1. + a2 * (1. - wh0 * wh0) / (wh0 * wh0)));
-            var wh1= dot(wi, hw);
-            var g1 = f32(wi.z * wh1 > 0.) * 2. / (1. + sqrt(1. + a2 * (1. - wh1 * wh1) / (wh1 * wh1)));
-
-            G = g0 * g1;
-        }
-        { //approximate conductor bsdf
-            var ior : f32 = 1.2; var k : f32 = 2.;
-            F = (ior - 1.) * (ior - 1.) + 4. * ior * pow(1. - dot(wo, hw), 5.) + k * k;
-            F = F / ((ior + 1.) * (ior + 1.) + k * k);
-        }
-
-
-        return col * D * F * G / (4. * abs(wo.z * wi.z));
-    }*/
-
-    /*fn torranceBRDF(wo : vec3f, wi : vec3f, n : vec3f, color_r : vec4f) -> vec3f {
-        var wh : vec3f = normalize(wo + wi);
-
-        var F : f32 = schlickFresnel(1.6, dot(wi, wh));
-
-        if (F < 0.) {return vec3f(0.);}
-
-        var a2 : f32 = .01 * .01;//color_r.a * color_r.a;
-
-        var G : f32;
-        {//get G masking shadowing fn
-            G =  2. * wo.z * wi.z / (wo.z * sqrt(a2 + (1. - a2) * wi.z * wi.z) + wi.z * sqrt(a2 + (1. - a2) * wo.z * wo.z));
-        }
-        var D : f32;
-        {
-            D = a2 / (Pi * pow((wh.z * wh.z * (a2 - 1.) + 1.), 2.));
-        }
-
-        return vec3f(1.) * F * G * D / (wo.z * wi.z);
-    }
-
-    fn torranceSample(wo : vec3f, r2 : vec2f, pdf : ptr<function, f32>) -> vec3f {
-        var a : f32 = .1;
-        
-        var theta : f32 = atan(a * sqrt(r2.x) / sqrt(1. - r2.x));
-        var phi   : f32 = 2. * Pi * r2.y;
-
-        var hw    : vec3f = vec3f(cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta));
-
-        var npdf  : f32 = 0.;
-
-        {
-            var a2 : f32 = a * a;
-            var denom = hw.z * hw.z * (a2 + (1. - hw.z * hw.z) / (hw.z * hw.z));
-            denom = Pi * denom * denom;
-            D = a2 * f32(hw.z > 0.) / denom;
-
-            npdf = D * hw.z;
-        }
-
-        *pdf
-    }
-
-    fn schlickFresnel(ior : f32, costheta : f32) -> f32 {
-        var f0 : f32 = (ior - 1.) * (ior - 1.) / ((ior + 1.) * (ior + 1.));
-        return f0 + (1. - f0) * pow(1. - costheta, 5.);
-    }*/
-
-    fn pt(oi : vec3f, di : vec3f) -> vec3f {
-        var o : vec3f = oi;
-        var d : vec3f = di;
-
-        projectPoint(&o, d);
-
-        var t : vec3f = vec3f(0.);
-        var b : vec3f = vec3f(1.);
-
-        var skycol : vec3f = pow(settings.sky.xyz, vec3f(2.2)) * settings.sky.a;//vec3f(0.02) * 8.;//vec3f(.5, .7, 1.);
-        var suncol : vec3f = pow(settings.sun.xyz, vec3f(2.2)) * settings.sun.a;//vec3f(.1) * 8.;//vec3f(8.1, 6., 4.2) * .15;
-        var sundir : vec3f = normalize(
-            vec3f(
-                cos(settings.azimuth) * cos(settings.zenith),
-                sin(settings.azimuth) * cos(settings.zenith),
-                sin(settings.zenith)
-            ));
-
-        for (var i : i32 = 0; i < 3; i++) {
-            var result : RayHit = trace(o, d, i != 0);
-
-            if (!result.bhit) {t += b * skycol; break;}
-
-            var material : VoxelMaterial = materials[result.umat - 1u];
-
-            if (material.others.x > 0.) {
-                t += b * material.others.x * pow(material.color_r.xyz, vec3f(2.2));
-                break;
-            }
-
-            var o1 : vec3f; var o2 : vec3f;
-            if (abs(result.norm.x) == 1.) {
-                o1 = vec3f(0., 1., 0.); o2 = vec3f(0., 0., 1.);
-            }
-            if (abs(result.norm.y) == 1.) {
-                o1 = vec3f(1., 0., 0.); o2 = vec3f(0., 0., 1.);
-            }
-            if (abs(result.norm.z) == 1.) {
-                o1 = vec3f(1., 0., 0.); o2 = vec3f(0., 1., 0.);
-            }
-
-            var wi : vec3f = cosineSampleHemisphere(rand2());
-
-            var pdf :   f32 = max(wi.z, .001) * InvPi;
-            var brdf: vec3f = vec3f(.4) * InvPi;
-
-            b *= pow(material.color_r.xyz, vec3f(2.2));
-
-            o = o + d * result.dist + result.norm * .001;
-            d = wi.x * o1 + wi.y * o2 + wi.z * result.norm;
-
-            {//sample direct light
-                var dir : vec3f = coneSample(sundir, .0005);
-                var dif :   f32 = dot(result.norm, dir);
-                if (dif > 0.) {
-                    var sunres : RayHit = trace(o, dir, true);
-                    if (!sunres.bhit) {
-                        t += b * suncol * dif;
-                    }
-                }
-            }
-        }
-
-        return t;
     }`;
-
-    /*
-    
-
-    
-    //brdf from here: https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf
-    //assume that wo, wi are in local space
-    fn torranceBRDF(wo : vec3f, wi : vec3f) -> vec3f {
-        var wh : vec3f = normalize(wo + wi);
-        return vec3f(.5) * Smith(wo, wh);
-        //return fresnelSchlick(vec3f(1.), dot(wi, wh)) * GGX(wi, wo, wh) * Smith(wo, wh) / (4. * wo.z * wi.z);
-        //return fresnel(dot(wh, wo)) * vec3f(1.) * GGXSmith(wo, wi, wh) / (4. * wo.z * wi.z);
-    }
-
-    //fresnel schlick approximation for specular reflectance of dialectric
-    fn fresnelSchlick(col : vec3f, theta : f32) -> vec3f {
-        //if (theta > 1.) {return vec3f(0.);}
-        return vec3f(.5);
-        //return col + (vec3f(1.) - col) * pow(1. - theta, 5.);
-    }
-
-    //GGX ndf from: https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf (eq. 33)
-    //note that currently this does not set the value to zero when the
-    //direction is "into" the tangent plane, this should be done up higher
-    fn GGX(wi : vec3f, wo : vec3f, wh : vec3f) -> f32 {
-        var alpha : f32 = .5;
-        var alpha2: f32 = alpha * alpha;
-
-        return alpha2 / (Pi * pow(wh.z, 4.) * pow((alpha2 + pow(tan(acos(wh.z)), 2.)), 2.));
-    }
-    
-
-    //Smith shadowing function for GGX ndf, doesn't account for "into" rays (eq. 34)
-    //from: https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf 
-    fn Smith(wo : vec3f, wi : vec3f) -> f32 {
-        var alpha : f32 = .5;
-        var alpha2: f32 = alpha * alpha;
-
-        return 2. / (1. + sqrt(1. + alpha2 * pow(tan(acos(wo.z)), 2.)));
-    }
-
-    */
 
     //---------------- Editing & Rebuilding Acceleration Structure ----------------//
     //-------- Textures/Buffers that are used for Octree --------//
