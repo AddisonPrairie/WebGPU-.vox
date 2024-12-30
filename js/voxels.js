@@ -1203,5 +1203,5 @@ async function voxels(canvas, size, options) {
     //sets the scene to be completely empty
     function clearScene() {CPUSceneArView.fill(0);}
 
-    return {frame, setPosition, setLookAt, setFOV, uploadScene, setVoxel, setMaterial, uploadMaterials, setReset, uploadRenderSettings, downloadImage, adapterInfo: await adapter.requestAdapterInfo(), clearScene};
+    return {frame, setPosition, setLookAt, setFOV, uploadScene, setVoxel, setMaterial, uploadMaterials, setReset, uploadRenderSettings, downloadImage, adapterInfo: await adapter.info, clearScene};
 }
